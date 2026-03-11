@@ -1,22 +1,21 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ShoppingBag, Users, Target, Check, IndianRupee } from 'lucide-react';
+import { ShoppingBag, Users, Check, IndianRupee, FileText } from 'lucide-react';
 import clsx from 'clsx';
-import { TiltCard } from '../../ui/TiltCard';
+// TiltCard Removed
 
 export const ProductDetailsWidget = ({ onComplete }: { onComplete: (data: any) => void }) => {
     const [data, setData] = useState({
+        projectName: '',
         product: '',
         audience: '',
-        price: '',
-        goal: 'awareness',
-        platforms: [] as string[],
-        file: null as File | null
+        pricePoint: '',
+        campaignType: 'AWARENESS' as 'AWARENESS' | 'CONVERSION' | 'RETENTION' | 'ENGAGEMENT',
+        platforms: [] as string[]
     });
     const [isCompleted, setIsCompleted] = useState(false);
 
     const handleSubmit = () => {
-        if (!data.product || !data.audience) return;
+        if (!data.projectName || !data.product || !data.audience) return;
         setIsCompleted(true);
         onComplete(data);
     };
@@ -32,54 +31,57 @@ export const ProductDetailsWidget = ({ onComplete }: { onComplete: (data: any) =
 
     if (isCompleted) {
         return (
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3"
-            >
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
-                    <Check size={16} />
+            <div className="bg-slate-900 border border-blue-500/30 rounded-lg p-4 flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                    <Check size={14} />
                 </div>
                 <div className="text-sm text-slate-200 font-medium">
-                    Campaign Configuration Locked <span className="text-slate-500 ml-2">({data.product})</span>
+                    Campaign Configuration Locked <span className="text-slate-500 ml-2">({data.projectName})</span>
                 </div>
-            </motion.div>
+            </div>
         );
     }
 
     return (
         <div className="w-full max-w-xl">
             <div className="mb-6">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
-                    <span className="w-8 h-[1px] bg-cyan-500/50"></span>
-                    Input Required
-                </h3>
-                <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-                        <Target size={20} />
-                    </div>
+                <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-3">
                     Campaign Parameters
                 </h2>
+                <p className="text-sm text-slate-500">Define the core attributes for your marketing campaign.</p>
             </div>
 
-            <TiltCard className="rounded-2xl" glowColor="cyan">
-                {/* Main Card Container */}
-                <div className="premium-card rounded-2xl p-8 relative overflow-hidden group/card">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 shadow-sm">
 
-                    {/* Background Ambience */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                <div className="space-y-6">
+                    {/* Project Name */}
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">
+                            Project Name
+                        </label>
+                        <div className="relative">
+                            <FileText className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+                            <input
+                                type="text"
+                                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-md focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none text-slate-200 text-sm placeholder:text-slate-600"
+                                placeholder="e.g. Summer Launch 2024"
+                                value={data.projectName}
+                                onChange={e => setData({ ...data, projectName: e.target.value })}
+                            />
+                        </div>
+                    </div>
 
-                    <div className="space-y-6 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Product Name */}
-                        <div className="group">
-                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider ml-1 group-focus-within:text-cyan-400 transition-colors">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">
                                 Product Designation
                             </label>
-                            <div className="relative transform transition-transform duration-300 group-focus-within:scale-[1.01]">
-                                <ShoppingBag className="absolute left-4 top-4 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                            <div className="relative">
+                                <ShoppingBag className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
                                 <input
                                     type="text"
-                                    className="w-full pl-12 pr-4 py-4 glass-input font-medium"
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-md focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none text-slate-200 text-sm placeholder:text-slate-600"
                                     placeholder="e.g. Quantum Neural Chip"
                                     value={data.product}
                                     onChange={e => setData({ ...data, product: e.target.value })}
@@ -87,117 +89,103 @@ export const ProductDetailsWidget = ({ onComplete }: { onComplete: (data: any) =
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Audience */}
-                            <div className="group">
-                                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider ml-1 group-focus-within:text-cyan-400 transition-colors">Target Audience</label>
-                                <div className="relative transform transition-transform duration-300 group-focus-within:scale-[1.01]">
-                                    <Users className="absolute left-4 top-4 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-                                    <input
-                                        type="text"
-                                        className="w-full pl-12 pr-4 py-4 glass-input font-medium"
-                                        placeholder="e.g. Data Scientists"
-                                        value={data.audience}
-                                        onChange={e => setData({ ...data, audience: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Price */}
-                            <div className="group">
-                                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider ml-1 group-focus-within:text-cyan-400 transition-colors">Price Point (INR)</label>
-                                <div className="relative transform transition-transform duration-300 group-focus-within:scale-[1.01]">
-                                    <IndianRupee className="absolute left-4 top-4 w-5 h-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-                                    <input
-                                        type="number"
-                                        className="w-full pl-12 pr-4 py-4 glass-input font-medium"
-                                        placeholder="₹ 0.00"
-                                        value={data.price}
-                                        onChange={e => setData({ ...data, price: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="w-full h-[1px] bg-white/5 my-4"></div>
-
-                        {/* Goal Selector */}
+                        {/* Audience */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider ml-1">Optimization Goal</label>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {['awareness', 'conversion', 'retention'].map(g => (
-                                    <button
-                                        key={g}
-                                        onClick={() => setData({ ...data, goal: g })}
-                                        className={clsx(
-                                            "py-3 px-2 rounded-xl text-xs font-bold capitalize transition-all duration-300 transform border",
-                                            data.goal === g
-                                                ? "bg-gradient-to-br from-blue-600/80 to-cyan-600/80 border-cyan-400/50 text-white shadow-lg shadow-cyan-500/20 scale-[1.02]"
-                                                : "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 hover:border-white/10"
-                                        )}
-                                    >
-                                        {g}
-                                    </button>
-                                ))}
+                            <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">Target Audience</label>
+                            <div className="relative">
+                                <Users className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+                                <input
+                                    type="text"
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-md focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none text-slate-200 text-sm placeholder:text-slate-600"
+                                    placeholder="e.g. Data Scientists"
+                                    value={data.audience}
+                                    onChange={e => setData({ ...data, audience: e.target.value })}
+                                />
                             </div>
                         </div>
+                    </div>
 
-                        {/* Platforms */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Price */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider ml-1">Deployment Channels</label>
-                            <div className="flex flex-wrap gap-2.5">
-                                {['LinkedIn', 'Twitter/X', 'Email', 'Web', 'Instagram', 'TikTok', 'YouTube', 'Facebook'].map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => togglePlatform(p)}
-                                        className={clsx(
-                                            "py-2 px-4 rounded-lg text-xs font-medium transition-all duration-300 border flex items-center gap-2",
-                                            data.platforms.includes(p)
-                                                ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)]"
-                                                : "bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:border-white/10"
-                                        )}
-                                    >
-                                        <div className={clsx(
-                                            "w-2 h-2 rounded-full transition-colors",
-                                            data.platforms.includes(p) ? "bg-cyan-400 shadow-[0_0_5px_cyan]" : "bg-slate-600"
-                                        )}></div>
-                                        {p}
-                                    </button>
-                                ))}
+                            <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">Price Point (INR)</label>
+                            <div className="relative">
+                                <IndianRupee className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+                                <input
+                                    type="text"
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-md focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none text-slate-200 text-sm placeholder:text-slate-600"
+                                    placeholder="0.00"
+                                    value={data.pricePoint}
+                                    onChange={e => setData({ ...data, pricePoint: e.target.value })}
+                                />
                             </div>
                         </div>
 
-                        <div className="w-full h-[1px] bg-white/5 my-4"></div>
+                        {/* Campaign Type Selector */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">Campaign Type</label>
+                            <select
+                                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-md focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none text-slate-200 text-sm"
+                                value={data.campaignType}
+                                onChange={e => setData({ ...data, campaignType: e.target.value as any })}
+                            >
+                                <option value="AWARENESS">Awareness</option>
+                                <option value="CONVERSION">Conversion</option>
+                                <option value="RETENTION">Retention</option>
+                                <option value="ENGAGEMENT">Engagement</option>
+                            </select>
+                        </div>
+                    </div>
 
-                        {/* Brand Guidelines Upload */}
+                    <div className="w-full h-px bg-slate-800 my-4"></div>
 
+                    {/* Platforms */}
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wide">Deployment Channels</label>
+                        <div className="flex flex-wrap gap-2">
+                            {['Instagram', 'Web', 'LinkedIn', 'Twitter/X', 'Facebook', 'Email'].map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => togglePlatform(p)}
+                                    className={clsx(
+                                        "py-1.5 px-3 rounded-md text-xs font-medium transition-colors border flex items-center gap-2",
+                                        data.platforms.includes(p)
+                                            ? "bg-blue-900/40 border-blue-700 text-blue-300"
+                                            : "bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-800 hover:border-slate-700"
+                                    )}
+                                >
+                                    <div className={clsx(
+                                        "w-1.5 h-1.5 rounded-full transition-colors",
+                                        data.platforms.includes(p) ? "bg-blue-400" : "bg-slate-700"
+                                    )}></div>
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
-            </TiltCard>
 
-            <div className="mt-8 flex justify-end">
-                <button
-                    onClick={handleSubmit}
-                    disabled={!data.product || !data.audience}
-                    className={clsx(
-                        "group relative px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 overflow-hidden",
-                        (!data.product || !data.audience)
-                            ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
-                            : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5"
-                    )}
-                >
-                    {(!data.product || !data.audience) ? (
-                        <span>Save Configuration</span>
-                    ) : (
-                        <span className="flex items-center gap-2">
-                            Initialize Protocol
-                            <Check className="w-4 h-4" />
-                        </span>
-                    )}
-
-                    {/* Shine Effect */}
-                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
-                </button>
+                <div className="mt-8 flex justify-end pt-4 border-t border-slate-800">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={!data.projectName || !data.product || !data.audience}
+                        className={clsx(
+                            "px-6 py-2 rounded-md text-sm font-semibold transition-all shadow-sm flex items-center gap-2",
+                            (!data.projectName || !data.product || !data.audience)
+                                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-500"
+                        )}
+                    >
+                        {!data.projectName || !data.product || !data.audience ? (
+                            <span>Complete Configuration</span>
+                        ) : (
+                            <>
+                                <span>Confirm Configuration</span>
+                                <Check size={16} />
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

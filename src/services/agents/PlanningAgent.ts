@@ -18,6 +18,45 @@ export class PlanningAgent extends BaseAgent {
         super('PlanningAgent');
     }
 
+    private constructExecutionPipeline(_input: PlanningInput): { nodes: Record<string, TaskNode>, list: string[] } {
+        const nodes: Record<string, TaskNode> = {};
+
+        // 1. Market Intelligence
+        nodes['market_research'] = {
+            id: 'market_research',
+            agentName: 'MarketIntelligenceAgent',
+            dependencies: [],
+            status: 'idle',
+            inputContextKeys: ['product', 'audience'],
+            outputContextKeys: ['market_position', 'key_triggers', 'risks', 'recommended_channels']
+        };
+
+        // 2. Persona Modeling
+        nodes['persona_modeling'] = {
+            id: 'persona_modeling',
+            agentName: 'PersonaModelingAgent',
+            dependencies: ['market_research'],
+            status: 'idle',
+            inputContextKeys: ['audience', 'industry'],
+            outputContextKeys: ['persona_name', 'motivations', 'pain_points', 'preferred_tone']
+        };
+
+        // 3. Creative Generation (Critical Step)
+        nodes['creative_generation'] = {
+            id: 'creative_generation',
+            agentName: 'CreativeGenerationAgent',
+            dependencies: ['persona_modeling', 'market_research'],
+            status: 'idle',
+            inputContextKeys: ['product', 'personaData', 'marketData', 'goal', 'brandGuidelines'],
+            outputContextKeys: ['creatives']
+        };
+
+        return {
+            nodes,
+            list: ['market_research', 'persona_modeling', 'creative_generation']
+        };
+    }
+
     async execute(input: any): Promise<AgentResult> {
         this.status = 'running';
         this.log('Initializing Planning Protocol...');
@@ -28,8 +67,7 @@ export class PlanningAgent extends BaseAgent {
             this.log(`Analyzed Context: ${safeInput.product} targeting ${safeInput.audience} for ${safeInput.goal}`);
 
             // STEP 2: BUILD DAG
-            // Deterministic graph based on scope.
-            const nodes = this.constructExecutionPipeline(safeInput);
+            const { nodes, list } = this.constructExecutionPipeline(safeInput);
 
             // STEP 3: GRAPH CONSTRUCTION
             const taskGraph: TaskGraph = {
@@ -38,19 +76,20 @@ export class PlanningAgent extends BaseAgent {
                     rejected_variants: [],
                     loop_count: 0,
                     history: [],
-                    campaignId: safeInput.campaignId // Pass through ID for persistence
+                    campaignId: safeInput.campaignId
                 },
                 nodes: nodes
             };
 
-            this.log('Task Graph Generated: 4 Active Nodes defined.');
+            this.log('Task Graph Generated: 3 Active Nodes defined.');
             this.status = 'completed';
 
             return {
                 agentName: this.name,
                 status: this.status,
                 data: {
-                    taskGraph,
+                    execution_graph: list, // Strict requirement
+                    taskGraph,             // UI Requirement
                     reasoning: `Selected standard pipeline for ${safeInput.goal}.`
                 },
                 timestamp: new Date().toISOString(),
@@ -68,7 +107,6 @@ export class PlanningAgent extends BaseAgent {
             };
         }
     }
-
     private normalizeInput(input: any): PlanningInput {
         // Strict mapping for Campaign Goal
         const GOAL_MAP: Record<string, 'AWARENESS' | 'CONVERSIONS' | 'ENGAGEMENT'> = {
@@ -95,51 +133,5 @@ export class PlanningAgent extends BaseAgent {
             price: input.price || "Not specified",
             campaignId: input.campaignId
         };
-    }
-
-    private constructExecutionPipeline(_input: PlanningInput): Record<string, TaskNode> {
-        const nodes: Record<string, TaskNode> = {};
-
-        // 1. Market Intelligence
-        nodes['market_research'] = {
-            id: 'market_research',
-            agentName: 'MarketIntelligenceAgent',
-            dependencies: [],
-            status: 'idle',
-            inputContextKeys: ['product', 'audience'],
-            outputContextKeys: ['marketSummary', 'keyOpportunities', 'keyRisks', 'recommendedPositioning', 'suggestedMessagingAngles']
-        };
-
-        // 2. Persona Modeling
-        nodes['persona_modeling'] = {
-            id: 'persona_modeling',
-            agentName: 'PersonaModelingAgent',
-            dependencies: ['market_research'],
-            status: 'idle',
-            inputContextKeys: ['audience', 'marketSummary', 'industry'],
-            outputContextKeys: ['personas', 'primaryPersona', 'creativeConstraints']
-        };
-
-        // 3. Creative Generation (Critical Step)
-        nodes['creative_generation'] = {
-            id: 'creative_generation',
-            agentName: 'CreativeGenerationAgent',
-            dependencies: ['persona_modeling', 'market_research'],
-            status: 'idle',
-            inputContextKeys: ['product', 'primaryPersona', 'creativeConstraints', 'goal', 'brandGuidelines', 'keyOpportunities', 'campaignId'],
-            outputContextKeys: ['variants']
-        };
-
-        // 4. Best Creative Selection (Rule Based)
-        nodes['decision'] = {
-            id: 'decision',
-            agentName: 'DecisionAgent',
-            dependencies: ['creative_generation'],
-            status: 'idle',
-            inputContextKeys: ['variants', 'campaignId'],
-            outputContextKeys: ['selected_creative', 'bestCreativeId']
-        };
-
-        return nodes;
     }
 }

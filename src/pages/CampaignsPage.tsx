@@ -82,6 +82,7 @@ export const CampaignsPage = () => {
                         <table className="w-full text-left text-sm">
                             <thead className="sticky top-0 bg-slate-900 z-10">
                                 <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider text-xs font-bold">
+                                    <th className="px-6 py-4">Preview</th>
                                     <th className="px-6 py-4">Campaign Name</th>
                                     <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4">Timeline</th>
@@ -102,8 +103,19 @@ export const CampaignsPage = () => {
                                         whileHover={{ backgroundColor: "rgba(30, 41, 59, 0.5)" }}
                                     >
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-white group-hover:text-blue-400 transition-colors">{campaign.name}</div>
-                                            <div className="text-xs text-slate-500 font-mono mt-0.5">ID: {campaign.id}</div>
+                                            <div className="w-12 h-12 rounded-lg bg-slate-800 overflow-hidden border border-slate-700 flex items-center justify-center">
+                                                {campaign.preview_url ? (
+                                                    <img src={campaign.preview_url} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                                                        <BarChart3 size={16} className="text-slate-500" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">{campaign.name}</div>
+                                            <div className="text-[10px] text-slate-500 font-mono mt-0.5 opacity-60">ID: {campaign.id}</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={clsx(
@@ -115,9 +127,11 @@ export const CampaignsPage = () => {
                                                 {campaign.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-400 flex items-center gap-2">
-                                            <Calendar size={14} />
-                                            {campaign.date}
+                                        <td className="px-6 py-4 text-slate-400">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar size={14} className="text-slate-500" />
+                                                <span className="text-xs font-medium">{campaign.date}</span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-slate-300">
                                             <div className="flex items-center gap-2">
@@ -178,6 +192,23 @@ export const CampaignsPage = () => {
                                     <X size={20} />
                                 </button>
                             </div>
+
+                            {/* Campaign Preview Image */}
+                            {selectedCampaign.preview_url && (
+                                <div className="mb-8 rounded-2xl overflow-hidden aspect-video bg-slate-800 border border-slate-800 shadow-2xl relative group">
+                                    <img
+                                        src={selectedCampaign.preview_url}
+                                        alt="Campaign Primary Visual"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-900 to-transparent"></div>
+                                    <div className="absolute bottom-4 left-4">
+                                        <span className="bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-400/30">
+                                            Primary Visual
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {loadingDetails ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-500">

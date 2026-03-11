@@ -4,20 +4,24 @@
 
 @layer base {
   body {
-    @apply bg-navy-950 text-slate-300 font-sans antialiased overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200;
-    /* Custom background override to ensure the gradient covers everything */
-    background: linear-gradient(to bottom right, #020617, #1e1b4b);
+    @apply bg-[#0f172a] text-slate-400 font-sans antialiased overflow-hidden selection:bg-blue-600/30 selection:text-blue-200;
+    /* Enterprise Background: Solid Deep Slate/Navy */
+    background-color: #0f172a;
     min-height: 100vh;
   }
 }
 
 @layer utilities {
+
+  /* Enterprise Card: Flat, subtle border, no blur needed for main content */
   .glass-card {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl;
+    @apply bg-slate-900 border border-slate-800 shadow-sm;
   }
 
+  /* Status Text: Clean, no shadow */
   .text-glow {
-    text-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+    /* Removed for valid enterprise look */
+    text-shadow: none;
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -41,15 +45,18 @@
     transform-style: preserve-3d;
   }
 
+  /* Enterprise Input: Solid, high contrast text, focus ring */
   .glass-input {
-    @apply bg-white/5 border border-white/10 text-white placeholder:text-slate-500 rounded-xl focus:bg-white/10 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all outline-none backdrop-blur-md;
+    @apply bg-slate-950 border border-slate-800 text-slate-200 placeholder:text-slate-600 rounded-lg focus:bg-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none;
   }
 
+  /* Primary Gradient removed for solid color or subtle gradient */
   .premium-gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500;
+    @apply text-slate-100 font-semibold;
   }
 
+  /* Dashboard Card: subtle elevation */
   .premium-card {
-    @apply bg-[#0B1221]/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50;
+    @apply bg-slate-900 border border-slate-800 shadow-sm transition-shadow hover:shadow-md;
   }
 }

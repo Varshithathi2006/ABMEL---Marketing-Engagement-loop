@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>AI Image Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d0d0d;
+            color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 0.2em;
+            margin-bottom: 1.5rem;
+            color: #aaffaa;
+        }
+
+        textarea {
+            width: 100%;
+            max-width: 500px;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #f0f0f0;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #aaffaa;
+        }
+
+        button {
+            margin-top: 1rem;
+            padding: 0.7rem 2rem;
+            background: #aaffaa;
+            color: #0d0d0d;
+            border: none;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            letter-spacing: 0.1em;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        #output {
+            margin-top: 2rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        #output img {
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        #status {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>// IMAGE GEN</h1>
+    <textarea id="prompt" rows="3" placeholder="describe your image..."></textarea>
+    <button onclick="generate()">GENERATE</button>
+    <div id="output">
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function generate() {
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) return;
+            const status = document.getElementById('status');
+            const output = document.getElementById('output');
+            status.textContent = 'generating...';
+            // Remove old image
+            const old = output.querySelector('img');
+            if (old) old.remove();
+
+            const encoded = encodeURIComponent(prompt);
+            const url = `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&nologo=true&seed=${Date.now()}`;
+
+            const img = new Image();
+            img.onload = () => { status.textContent = '✓ done'; };
+            img.onerror = () => { status.textContent = '✗ failed — try again'; };
+            img.src = url;
+            img.alt = prompt;
+            output.insertBefore(img, status);
+        }
+    </script>
+</body>
+
+</html>

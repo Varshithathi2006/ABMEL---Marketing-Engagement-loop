@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom'; // Added
 import { MessageBubble } from './MessageBubble';
-import { Send, Sparkles, Play, Paperclip } from 'lucide-react';
+import { Send, Sparkles, Play, Paperclip, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { useCampaignStore } from '../../store/useCampaignStore';
 
@@ -27,51 +27,14 @@ export const PromptingInterface = () => {
     const { setInput, planCampaign } = useCampaignStore();
     const hasInitialized = useRef(false);
 
-    // Initial Greeting & State Restoration
+
+    // Initial Greeting - always fresh cold start
     useEffect(() => {
         if (hasInitialized.current) return;
         hasInitialized.current = true;
 
-        const { input } = useCampaignStore.getState();
-
-        // 1. Check if we have existing context (Navigation Back / Draft Restore)
-        if (input.product && input.audience) {
-            console.log("[UI] Restoring existing context...");
-            addSystemMessage("Neural context restored. I recall your campaign parameters.", "restore-context");
-            handleUserResponse(`Configured for: ${input.product} targeting ${input.audience}`);
-
-            setTimeout(() => {
-                addSystemMessage("Ready to execute. Shall we proceed to the Planning Phase?", "ready-to-plan");
-                addComponentMessage(
-                    <div className="flex justify-start">
-                        <button
-                            onClick={async (e) => {
-                                const btn = e.currentTarget;
-                                btn.disabled = true;
-                                btn.innerHTML = 'Connecting to Hive...';
-                                try {
-                                    await planCampaign();
-                                } catch (err) {
-                                    console.error(err);
-                                    btn.disabled = false;
-                                    btn.innerHTML = 'Retry Planning';
-                                }
-                            }}
-                            className="bg-green-500 hover:bg-green-400 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all"
-                        >
-                            <Play size={20} className="fill-current" />
-                            Initiate Planning Phase
-                        </button>
-                    </div>,
-                    "action-proceed"
-                );
-            }, 800);
-            return;
-        }
-
-        // 2. Cold Start
         setTimeout(() => {
-            addSystemMessage("Welcome to the ABMEL Command Center. \n\nI am your autonomous agentic partner. To begin, please provide any specific brand guidelines or constraints.", "welcome");
+            addSystemMessage("Welcome to the ABMEL Command Center. \n\nI am your autonomous agentic partner. To begin, please upload your brand guidelines or define your campaign context.", "welcome");
 
             setTimeout(() => {
                 addComponentMessage(
@@ -84,7 +47,7 @@ export const PromptingInterface = () => {
                                     addComponentMessage(<BrandGuidelinesWidget onComplete={handleBrandComplete} />, "brand-widget");
                                 }, 500);
                             }}
-                            className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
+                            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/30 transition-all hover:scale-105"
                         >
                             <Sparkles size={18} className="fill-current" />
                             Initialize Campaign
@@ -93,7 +56,6 @@ export const PromptingInterface = () => {
                     "start-button"
                 );
             }, 600);
-
         }, 800);
     }, []);
 
@@ -142,7 +104,7 @@ export const PromptingInterface = () => {
             // Add the "Proceed" Action Button
             setTimeout(() => {
                 addComponentMessage(
-                    <div className="flex justify-start">
+                    <div className="flex gap-4">
                         <button
                             onClick={async (e) => {
                                 console.log('[UI] "Initiate Planning Phase" clicked');
@@ -154,17 +116,28 @@ export const PromptingInterface = () => {
                                     console.log('[UI] Calling planCampaign()...');
                                     await planCampaign();
                                     console.log('[UI] planCampaign returned successfully, navigating to dashboard...');
-                                    navigate('/execution'); // Added navigation
+                                    navigate('/execution');
                                 } catch (err) {
                                     console.error('[UI] Error calling planCampaign:', err);
                                     btn.innerHTML = 'Error - Try Again';
                                     btn.disabled = false;
                                 }
                             }}
-                            className="bg-green-500 hover:bg-green-400 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105 hover:rotate-1 disabled:opacity-70 disabled:cursor-wait"
+                            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105 disabled:opacity-70 disabled:cursor-wait"
                         >
                             <Play size={20} className="fill-current" />
                             Initiate Planning Phase
+                        </button>
+                        <button
+                            onClick={async () => {
+                                const { resetCampaign } = useCampaignStore.getState();
+                                await resetCampaign();
+                                window.location.reload(); // Refresh to clear chat UI
+                            }}
+                            className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg shadow-slate-900/20 transition-all transform hover:scale-105"
+                        >
+                            <RotateCcw size={20} />
+                            Start New Campaign
                         </button>
                     </div>,
                     "action-proceed"

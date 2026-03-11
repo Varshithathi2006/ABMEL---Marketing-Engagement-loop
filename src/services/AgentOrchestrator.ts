@@ -1,4 +1,3 @@
-import { SupabaseService } from './SupabaseService';
 import { abmelWorkflow } from './langchain/workflow';
 import type { AbmelState } from './langchain/workflow';
 import type { GraphEvent } from '../types/graph';
@@ -26,8 +25,7 @@ export class AgentOrchestrator {
         console.log('Orchestrator: Planning campaign...', input);
         this.currentCampaignControl.input = input;
 
-        // Emit the Deterministic DAG Structure for UI Visualization (4 Steps)
-        // This must match the workflow in workflow.ts and PlanningAgent.ts
+        // Emit the Deterministic DAG Structure for UI Visualization (3 Steps)
         this.emit({
             type: 'node_complete',
             nodeId: 'planning',
@@ -38,7 +36,7 @@ export class AgentOrchestrator {
                         market_research: { id: 'market_research', agentName: 'MarketIntelligenceAgent', status: 'idle', dependencies: ['planning'], inputContextKeys: [], outputContextKeys: [] },
                         persona_modeling: { id: 'persona_modeling', agentName: 'PersonaModelingAgent', status: 'idle', dependencies: ['market_research'], inputContextKeys: [], outputContextKeys: [] },
                         creative_generation: { id: 'creative_generation', agentName: 'CreativeGenerationAgent', status: 'idle', dependencies: ['persona_modeling'], inputContextKeys: [], outputContextKeys: [] },
-                        decision: { id: 'decision', agentName: 'DecisionAgent', status: 'idle', dependencies: ['creative_generation'], inputContextKeys: [], outputContextKeys: [] }
+                        image_generation: { id: 'image_generation', agentName: 'ImageGenerationAgent', status: 'idle', dependencies: ['creative_generation'], inputContextKeys: [], outputContextKeys: [] }
                     },
                     context: input
                 }
@@ -51,13 +49,36 @@ export class AgentOrchestrator {
         if (!this.currentCampaignControl.input) throw new Error('No input provided.');
         console.log('Starting LangChain Workflow...');
 
+        const inp = this.currentCampaignControl.input;
         const initialState: AbmelState = {
-            product: this.currentCampaignControl.input.product,
-            goal: this.currentCampaignControl.input.goal,
-            brandGuidelines: this.currentCampaignControl.input.brandGuidelines,
-            campaignId: this.currentCampaignControl.input.campaignId, // Persistence ID
+            product: inp.product,
+            goal: inp.goal,
+            brandGuidelines: inp.brandGuidelines,
+            campaignId: inp.campaignId,
+            productDescription: inp.productDescription,
+            keyFeatures: inp.keyFeatures,
+            targetPlatforms: inp.targetPlatforms,
+            numVariants: inp.numVariants || 3,
+            audience: inp.audience,
             loopCount: 0,
-            onEvent: (e: any) => this.emit(e)
+            onEvent: async (e: any) => {
+                this.emit(e);
+
+                // Store all agent outputs to Supabase securely
+                if (e.type === 'node_complete' && e.nodeId !== 'workflow' && this.currentCampaignControl.input.campaignId) {
+                    try {
+                        const { SupabaseService } = await import('./SupabaseService');
+                        await SupabaseService.getInstance().saveAgentOutput(
+                            this.currentCampaignControl.input.campaignId,
+                            e.nodeId, // Store under node ID (e.g., 'market_research')
+                            e.data
+                        );
+                        console.log(`[DB] Saved output for node: ${e.nodeId}`);
+                    } catch (error) {
+                        console.error(`[DB] Failed to save output for node ${e.nodeId}:`, error);
+                    }
+                }
+            }
         };
 
         try {
@@ -65,28 +86,20 @@ export class AgentOrchestrator {
             const result = await abmelWorkflow.invoke(initialState);
             console.log("Workflow Complete", result);
 
-            // Persistence is handled within agents via Supabase calls (e.g. DecisionAgent)
-            // But we double check Creative Generation output here for safety.
-
             if (result.creativeVariants) {
-                // Ensure they are saved if Agent didn't? 
-                // Currently only DecisionAgent explicitly saves 'best'. 
-                // Creative variants are returned but SupabaseService.saveCreativeVariants is needed.
-                // Let's call it here to be safe, or assume the Agent/Store does it.
-                // Step 7 says "Save all creatives".
-
-                await this.saveArtifact('creative_generation', { variants: result.creativeVariants });
-
+                // Workflow already saved to DB. Just emit for UI.
                 this.emit({
                     type: 'WORKFLOW_COMPLETED',
-                    stage: 'CREATIVE_GENERATION',
+                    stage: 'IMAGE_GENERATION', // Updated
                     data: {
                         count: result.creativeVariants?.length || 0,
-                        variants: result.creativeVariants,
-                        decision: result.decision
+                        variants: result.creativeVariants
                     },
                     timestamp: new Date().toISOString()
                 });
+            } else if (result.error) {
+                // Workflow handled error logging but we want top level event
+                this.emit({ type: 'node_fail', nodeId: 'workflow', data: result.error, timestamp: new Date().toISOString() });
             }
 
             this.emit({ type: 'graph_complete', timestamp: new Date().toISOString() });
@@ -94,23 +107,6 @@ export class AgentOrchestrator {
         } catch (error) {
             console.error("Workflow Failed", error);
             this.emit({ type: 'node_fail', nodeId: 'workflow', data: error, timestamp: new Date().toISOString() });
-        }
-    }
-
-    private async saveArtifact(nodeId: string, data: any) {
-        const campaignId = this.currentCampaignControl.input?.campaignId;
-        if (!campaignId) return;
-
-        try {
-            // Generic Save
-            await SupabaseService.getInstance().saveAgentOutput(campaignId, nodeId, data);
-
-            // Specialized Save for Creatives
-            if (nodeId === 'creative_generation' && data.variants) {
-                await SupabaseService.getInstance().saveCreativeVariants(campaignId, data.variants);
-            }
-        } catch (err) {
-            console.error('Persistence Error', err);
         }
     }
 }

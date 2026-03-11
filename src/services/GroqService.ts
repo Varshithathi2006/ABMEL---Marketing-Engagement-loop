@@ -31,4 +31,27 @@ export class GroqService {
             throw error;
         }
     }
+
+    static async optimizeVisualPrompt(marketingDescription: string): Promise<string> {
+        const prompt = `Convert the following marketing visual description into a highly descriptive, technical Stable Diffusion prompt.
+        Focus strictly on: subjects, specific actions, environment, lighting (e.g. volumetric, cinematic), and artistic style.
+        Preserve ALL key subjects and products mentioned. Keep it under 60 words.
+        
+        Description: ${marketingDescription}
+        
+        Return ONLY the optimized prompt as a JSON object: {"optimizedPrompt": "..."}`;
+
+        try {
+            const raw = await this.generate([
+                { role: 'system', content: 'You are an expert AI prompt engineer for Stable Diffusion.' },
+                { role: 'user', content: prompt }
+            ], 0.3, true);
+
+            const data = JSON.parse(raw);
+            return data.optimizedPrompt || marketingDescription;
+        } catch (error) {
+            console.error('[Groq] Prompt optimization failed, using original.', error);
+            return marketingDescription;
+        }
+    }
 }

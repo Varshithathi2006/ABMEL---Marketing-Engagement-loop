@@ -1,21 +1,18 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Upload, FileText, Check } from 'lucide-react';
 import clsx from 'clsx';
-import { TiltCard } from '../../ui/TiltCard';
+// TiltCard Removed
 
 export const BrandGuidelinesWidget = ({ onComplete }: { onComplete: (data: any) => void }) => {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
-    // const [error, setError] = useState<string | null>(null);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (!selectedFile) return;
 
         setFile(selectedFile);
-        // setError(null);
         setIsUploading(true);
 
         // Simulate processing / Real upload logic
@@ -23,7 +20,6 @@ export const BrandGuidelinesWidget = ({ onComplete }: { onComplete: (data: any) 
             await new Promise(r => setTimeout(r, 1500)); // Fake parse time
             setIsUploading(false);
         } catch (err) {
-            // setError("Failed to parse file structure.");
             setIsUploading(false);
         }
     };
@@ -40,107 +36,82 @@ export const BrandGuidelinesWidget = ({ onComplete }: { onComplete: (data: any) 
 
     if (isCompleted) {
         return (
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 flex items-center gap-3"
-            >
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
-                    <Check size={16} />
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <Check size={14} />
                 </div>
                 <div className="text-sm text-slate-200 font-medium">
-                    Brand Knowledge Ingested <span className="text-slate-500 ml-2">({file?.name})</span>
+                    Brand Guidelines Uploaded <span className="text-slate-500 ml-2">({file?.name})</span>
                 </div>
-            </motion.div>
+            </div>
         );
     }
 
     return (
         <div className="w-full max-w-xl">
-            <div className="mb-6">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
-                    <span className="w-8 h-[1px] bg-purple-500/50"></span>
-                    Context Injection
-                </h3>
-                <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                        <FileText size={20} />
-                    </div>
-                    Brand Guidelines
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 shadow-sm">
+
+                <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                    <FileText size={18} className="text-blue-500" />
+                    Campaign Guardrails
                 </h2>
-            </div>
+                <p className="text-sm text-slate-500 mb-6">Upload your brand guidelines or strategy guardrails to align the AI Agents.</p>
 
-            <TiltCard className="rounded-2xl" glowColor="purple">
-                <div className="premium-card rounded-2xl p-8 relative overflow-hidden group/card">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                <div className="relative">
+                    <div className={clsx(
+                        "border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center transition-colors",
+                        isUploading ? "border-blue-500/50 bg-blue-500/5" : "border-slate-700 hover:border-slate-500 hover:bg-slate-800/50"
+                    )}>
+                        <input
+                            type="file"
+                            accept=".pdf,.txt,.md,.doc,.docx"
+                            onChange={handleFileUpload}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                            disabled={isUploading}
+                        />
 
-                    <div className="space-y-6 relative z-10">
-                        <div className="border-2 border-dashed border-slate-700/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-colors hover:border-purple-500/30 hover:bg-white/5 relative">
-
-                            <input
-                                type="file"
-                                accept=".pdf,.txt,.md"
-                                onChange={handleFileUpload}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                                disabled={isUploading}
-                            />
-
-                            <div className={clsx("w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-500",
-                                isUploading ? "bg-purple-500/20 animate-pulse" : "bg-slate-800"
-                            )}>
-                                {isUploading ? (
-                                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                                ) : file ? (
-                                    <FileText className="w-8 h-8 text-purple-400" />
-                                ) : (
-                                    <Upload className="w-8 h-8 text-slate-500" />
-                                )}
-                            </div>
-
-                            <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-white">
-                                    {file ? file.name : "Upload Guidelines Document"}
-                                </h3>
-                                <p className="text-sm text-slate-400">
-                                    {isUploading ? "Parsing semantic structure..." : "Supports PDF, TXT, MD (Max 10MB)"}
-                                </p>
-                            </div>
-
-                            {file && !isUploading && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="mt-4 flex items-center gap-2 text-xs font-bold text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20"
-                                >
-                                    <Check size={12} />
-                                    Analysis Complete
-                                </motion.div>
+                        <div className="mb-4">
+                            {isUploading ? (
+                                <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                            ) : file ? (
+                                <FileText className="w-10 h-10 text-blue-500 mx-auto" />
+                            ) : (
+                                <Upload className="w-10 h-10 text-slate-600 mx-auto" />
                             )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-semibold text-slate-200">
+                                {file ? file.name : "Click to upload guardrails or drag and drop"}
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                                {isUploading ? "Digesting guardrails..." : "PDF, DOC, TXT, MD (Max 10MB)"}
+                            </p>
                         </div>
                     </div>
                 </div>
-            </TiltCard>
 
-            <div className="mt-6 flex justify-between items-center">
-                <button
-                    onClick={() => onComplete({ skipped: true })}
-                    className="text-slate-500 hover:text-white text-sm font-medium px-4 py-2"
-                >
-                    Skip Context
-                </button>
+                <div className="mt-6 flex justify-between items-center pt-4 border-t border-slate-800">
+                    <button
+                        onClick={() => onComplete({ skipped: true })}
+                        className="text-slate-500 hover:text-slate-300 text-sm font-medium px-2 py-2"
+                    >
+                        Skip for now
+                    </button>
 
-                <button
-                    onClick={confirmUpload}
-                    disabled={!file || isUploading}
-                    className={clsx(
-                        "px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 shadow-lg",
-                        (!file || isUploading)
-                            ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                            : "bg-purple-600 text-white shadow-purple-500/25 hover:bg-purple-500 hover:shadow-purple-500/40"
-                    )}
-                >
-                    Confirm Guidelines
-                </button>
+                    <button
+                        onClick={confirmUpload}
+                        disabled={!file || isUploading}
+                        className={clsx(
+                            "px-6 py-2 rounded-md text-sm font-semibold transition-all shadow-sm",
+                            (!file || isUploading)
+                                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-500"
+                        )}
+                    >
+                        Confirm Upload
+                    </button>
+                </div>
             </div>
         </div>
     );

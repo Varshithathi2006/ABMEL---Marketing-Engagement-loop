@@ -1,155 +1,93 @@
 import { create } from 'zustand';
 import { AgentOrchestrator } from '../services/AgentOrchestrator';
+import type { GraphState } from '../types/graph';
+import { useNotificationStore } from './useNotificationStore';
 import { SupabaseService } from '../services/SupabaseService';
 import { useAuthStore } from './useAuthStore';
-import { useNotificationStore } from './useNotificationStore';
-import type { CampaignInput } from '../types/abmel';
-import type { TaskGraph, GraphEvent } from '../types/graph';
+
+interface CampaignInput {
+    projectName: string;
+    product: string;
+    productDescription: string;
+    keyFeatures: string;
+    audience: string;
+    goal: string;
+    campaignType: 'AWARENESS' | 'CONVERSION' | 'RETENTION' | 'ENGAGEMENT';
+    pricePoint: string;
+    budget: string;
+    numVariants: number;
+    platforms: string[];
+    targetPlatforms: string[];
+    brandGuidelines: string;
+    guidelineFileName?: string;
+    guidelineStorageUrl?: string;
+}
 
 interface CampaignState {
+    input: CampaignInput;
+    status: 'idle' | 'planning' | 'planned' | 'running' | 'completed' | 'failed' | 'created' | 'CREATIVES_READY';
+    graph: GraphState | null;
+    creatives: any[];
+    allCreatives: any[];
+    logs: string[];
+    campaigns: any[];
+    campaignId: string | null;
     orchestrator: AgentOrchestrator;
 
-    // Campaign Input
-    input: CampaignInput;
-    setInput: (input: Partial<CampaignInput>) => void;
-
-    // Execution State
-    status: 'idle' | 'created' | 'planned' | 'running' | 'completed' | 'CREATIVES_READY' | 'failed';
-    graph: TaskGraph | null;
-    creatives: any[];
-    logs: string[];
-
-    // History
-    campaigns: any[];
-    allCreatives: any[]; // Changed
-
-    // Actions
-    fetchCampaigns: (userId: string) => Promise<void>;
-    fetchAllCreatives: (userId: string) => Promise<void>; // Added
+    setInput: (updates: Partial<CampaignInput>) => void;
     restoreDraft: (userId: string) => Promise<void>;
     planCampaign: () => Promise<void>;
     executeCampaign: () => void;
-    saveCampaign: () => Promise<void>;
-    reset: () => void;
-    addLog: (msg: string) => void;
-    updateGraph: (graph: TaskGraph) => void;
+    resetCampaign: () => Promise<void>;
+    generateImageForCreative: (creative: any) => Promise<void>;
+    updateCreativeVisual: (creativeId: string, url: string, provider: string) => void;
+    updateGraph: (graph: GraphState | null) => void;
     updateNodeStatus: (nodeId: string, status: any, result?: any) => void;
-    fetchCampaignDetails: (campaignId: string) => Promise<Record<string, any>>;
+    addLog: (msg: string) => void;
+    reset: () => void;
+    fetchCampaigns: (userId: string) => Promise<void>;
+    fetchAllCreatives: (userId: string) => Promise<void>;
+    fetchCampaignDetails: (campaignId: string) => Promise<any>;
 }
 
-export const useCampaignStore = create<CampaignState>((set, get) => {
-    const orchestrator = new AgentOrchestrator();
+const orchestrator = new AgentOrchestrator();
 
-    // Subscribe to orchestrator events
-    orchestrator.subscribe((event: GraphEvent) => {
+export const useCampaignStore = create<CampaignState>((set, get) => {
+    // Subscriber to Orchestrator events
+    orchestrator.subscribe((event) => {
         const { graph } = get();
 
-        if (event.type === 'node_fail') {
-            get().addLog(`[${event.timestamp}] ERROR: Task ${event.nodeId} failed.`);
-            if (event.data?.error) {
-                get().addLog(`Reason: ${event.data.error}`);
-            }
-            set({ status: 'failed' });
-
-            if (graph && event.nodeId) {
-                const nodes = { ...graph.nodes };
-                if (nodes[event.nodeId]) {
-                    nodes[event.nodeId] = { ...nodes[event.nodeId], status: 'failed' };
-                    set({ graph: { ...graph, nodes } });
-                }
-            }
-
-        } else if (event.type === 'node_start') {
-            get().addLog(`[${event.timestamp}] Started task: ${event.nodeId}`);
-            if (graph && event.nodeId) {
-                const nodes = { ...graph.nodes };
-                if (nodes[event.nodeId]) {
-                    nodes[event.nodeId] = { ...nodes[event.nodeId], status: 'running' };
-                    set({ graph: { ...graph, nodes } });
-                }
-            }
+        if (event.type === 'node_start') {
+            get().addLog(`[${event.timestamp}] Agent ${event.nodeId} started...`);
+            if (event.nodeId) get().updateNodeStatus(event.nodeId, 'running');
         } else if (event.type === 'node_complete') {
-            get().addLog(`[${event.timestamp}] Completed task: ${event.nodeId}`);
+            get().addLog(`[${event.timestamp}] Agent ${event.nodeId} completed successfully.`);
+            if (event.nodeId) get().updateNodeStatus(event.nodeId, 'completed', event.data);
 
-            // Special case: Initial graph generation (Planning Phase)
-            if (event.data && event.data.taskGraph) {
-                set({ graph: event.data.taskGraph });
-                return;
-            }
-
-            const { graph } = get(); // Re-get graph just in case
-            if (graph && event.nodeId) {
-                const nodes = { ...graph.nodes };
-                if (nodes[event.nodeId]) {
-                    nodes[event.nodeId] = {
-                        ...nodes[event.nodeId],
-                        status: 'completed',
-                        result: event.data
-                    };
-
-                    // Sync context if available in data keys (excluding taskGraph which we handled)
-                    set({ graph: { ...graph, nodes, context: { ...graph.context, ...event.data } } });
-                }
+            if (event.nodeId === 'creative_generation' && event.data?.variants) {
+                set({ creatives: event.data.variants });
             }
         } else if (event.type === 'WORKFLOW_COMPLETED') {
-            get().addLog(`[${event.timestamp}] Workflow successfully completed. Loading results...`);
+            get().addLog(`[${event.timestamp}] Full campaign strategy generation complete.`);
 
-            // CRITICAL: Explicit handoff state + Data Binding
-            const variants = event.data?.variants || [];
-
-            // 1. Update Local State
-            set({
-                status: 'CREATIVES_READY',
-                creatives: variants
-            });
-
-            // 2. Persist to Supabase (CRITICAL FIX)
-            const { graph } = get();
-            const campaignId = graph?.context?.campaignId;
-
-            if (campaignId && !campaignId.startsWith('temp-')) {
-                get().addLog(`[Persistence] Saving ${variants.length} creatives to DB for Campaign: ${campaignId}`);
-                SupabaseService.getInstance().saveAgentOutput(
-                    campaignId,
-                    'creative_generation',
-                    { variants } // Store wrapped in object to match hydration logic
-                ).catch(err => console.error("Failed to save creatives:", err));
-
-                // Also update status to 'Creatives Ready' in DB?
-                // SupabaseService doesn't have updateStatus method exposed, but it's fine.
-            } else {
-                console.warn("[Persistence] Skipping save - Invalid or Temp Campaign ID:", campaignId);
+            if (event.data?.variants) {
+                set({ creatives: event.data.variants });
             }
 
-            useNotificationStore.getState().addNotification({
-                type: 'success',
-                title: 'Creatives Generated',
-                message: '5 Creative Variants are ready for review.'
-            });
-
-        } else if (event.type === 'graph_complete') {
-            get().addLog(`[${event.timestamp}] Campaign optimization complete.`);
-
-            // ARCHIVE CAMPAIGN TO HISTORY
-            const finishedGraph = get().graph;
-            if (finishedGraph) {
-                const decisionNode = finishedGraph.nodes['decision'];
-                const winner = decisionNode?.result?.selected_creative;
-                const score = winner?.score ? `Score: ${Math.round(winner.score)}` : 'Completed';
-
+            const currentId = get().campaignId;
+            if (currentId && !currentId.startsWith('temp-')) {
                 const newCampaign = {
-                    id: Math.random().toString(36).substring(7).toUpperCase(),
-                    name: finishedGraph.context.product + ' Campaign',
-                    status: 'Completed',
+                    id: currentId,
+                    name: get().input.product + ' Campaign',
+                    status: 'CREATIVES_READY',
                     date: new Date().toLocaleDateString(),
-                    performance: score,
-                    audience: finishedGraph.context.audience || 'General'
+                    performance: 'In Progress',
+                    audience: get().input.audience
                 };
-
-                set({
-                    // Only mark fully completed if we went past decision, but for now we stop at creatives often
-                    campaigns: [newCampaign, ...get().campaigns]
-                });
+                set((state) => ({
+                    campaigns: [newCampaign, ...state.campaigns],
+                    status: 'completed'
+                }));
             } else {
                 set({ status: 'completed' });
             }
@@ -160,6 +98,18 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
                 message: 'All agents have completed their tasks. Review the final decision.'
             });
 
+        } else if (event.type === 'node_fail') {
+            const errorMsg = typeof event.data === 'string' ? event.data : (event.data?.error || 'Unknown error');
+            get().addLog(`[${event.timestamp}] Agent ${event.nodeId} failed: ${errorMsg}`);
+
+            if (event.nodeId) get().updateNodeStatus(event.nodeId, 'failed', event.data);
+            set({ status: 'failed' });
+
+            useNotificationStore.getState().addNotification({
+                type: 'error',
+                title: `${event.nodeId} Agent Failed`,
+                message: errorMsg
+            });
         } else if (event.type === 'node_reset') {
             get().addLog(`[${event.timestamp}] Resetting task: ${event.nodeId}`);
             if (graph && event.nodeId) {
@@ -179,12 +129,21 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
     return {
         orchestrator,
         input: {
+            projectName: '',
             product: '',
+            productDescription: '',
+            keyFeatures: '',
             audience: '',
             goal: '',
+            campaignType: 'AWARENESS',
+            pricePoint: '',
             budget: '',
+            numVariants: 3,
             platforms: [],
-            brandGuidelines: ''
+            targetPlatforms: [],
+            brandGuidelines: '',
+            guidelineFileName: '',
+            guidelineStorageUrl: ''
         },
         status: 'idle',
         graph: null,
@@ -192,14 +151,13 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
         allCreatives: [],
         logs: [],
         campaigns: [],
+        campaignId: null,
 
         setInput: (updates) => {
             set((state) => {
                 const newInput = { ...state.input, ...updates };
-                // Debounced save to draft (pseudo-impl)
                 const userId = useAuthStore.getState().user?.id;
                 if (userId) {
-                    // In a real app we'd debounce this call
                     SupabaseService.getInstance().saveDraft(userId, newInput).catch(console.warn);
                 }
                 return { input: newInput };
@@ -221,22 +179,32 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
         fetchCampaigns: async (userId: string) => {
             try {
                 const data = await SupabaseService.getInstance().getUserCampaigns(userId);
-                // Map DB shape to UI shape if needed. 
-                // UI expects: { id, name, status, date, performance, audience }
-                // DB has: { id, product, status, created_at, ... }
-
+                const statusLabel: Record<string, string> = {
+                    'PLANNING': 'Planning',
+                    'RUNNING': 'Running',
+                    'CREATIVES_READY': 'Completed',
+                    'FAILED': 'Failed',
+                    'Running': 'Running',
+                    'Completed': 'Completed',
+                };
                 const mapped = data.map(c => ({
                     id: c.id,
                     name: c.product + ' Campaign',
-                    status: c.status,
-                    date: new Date().toLocaleDateString(), // simplified for now, or parse c.created_at
-                    performance: 'In Progress', // Placeholder until we link output
-                    audience: c.target_audience
+                    status: statusLabel[c.status] || c.status || 'Draft',
+                    created_at: c.created_at,
+                    date: new Date(c.created_at || Date.now()).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }),
+                    performance: c.status === 'CREATIVES_READY' || c.status === 'Completed' ? '✓ Creatives Ready' : 'In Progress',
+                    audience: c.target_audience || '—',
+                    preview_url: c.preview_url
                 }));
-
                 set({ campaigns: mapped });
             } catch (e) {
-                console.error("Failed to fetch campaigns", e);
+                console.error('Failed to fetch campaigns', e);
             }
         },
 
@@ -252,22 +220,19 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
         fetchCampaignDetails: async (campaignId: string) => {
             try {
                 const outputs = await SupabaseService.getInstance().getAgentOutputs(campaignId);
+                const creativesFromDB = await SupabaseService.getInstance().getCreatives(campaignId);
 
-                // Persistence Hydration logic
-                if (Array.isArray(outputs)) {
-                    const creativeNode = outputs.find((r: any) => r.node_id === 'creative_generation');
-                    if (creativeNode && creativeNode.output_data && creativeNode.output_data.variants) {
-                        set({ creatives: creativeNode.output_data.variants });
-                    } else if (creativeNode && creativeNode.data && creativeNode.data.variants) {
-                        set({ creatives: creativeNode.data.variants });
-                    }
+                if (creativesFromDB && creativesFromDB.length > 0) {
+                    set({ creatives: creativesFromDB });
                 } else if (outputs && outputs['creative_generation']?.variants) {
                     set({ creatives: outputs['creative_generation'].variants });
+                } else {
+                    set({ creatives: [] });
                 }
-
                 return outputs;
             } catch (e) {
                 console.error("Failed to fetch details", e);
+                set({ creatives: [] });
                 return {};
             }
         },
@@ -288,58 +253,34 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
         planCampaign: async () => {
             console.log('[Store] planCampaign triggered');
             const { input, orchestrator } = get();
-            console.log('[Store] Input:', input);
 
-            // 1. Create Campaign in DB (Real-time persistence)
             let campaignId = 'temp-' + Date.now();
             try {
-                // Fetch userId from Auth Store
                 const userId = useAuthStore.getState().user?.id;
-                console.log('[Store] UserId:', userId);
-
                 if (userId) {
                     campaignId = await SupabaseService.getInstance().createCampaign(userId, input);
                     get().addLog(`[System] Campaign initialized in DB: ${campaignId}`);
                 } else {
-                    get().addLog('[System] Warning: No authenticated user. Campaign saved locally only.');
-                    console.warn('[Store] No authenticated user found.');
+                    get().addLog('[System] Warning: No authenticated user. Campaign saved locally.');
                 }
             } catch (err) {
                 console.warn("Failed to create campaign in DB", err);
             }
 
-            console.log('[Store] Setting status to running...');
-            set({ status: 'running', logs: [] });
+            set({ campaignId, status: 'running', logs: [] });
 
             try {
-                // 2. Initialize Orchestrator with campaignId context
-                console.log('[Store] Calling orchestrator.planCampaign...');
                 await orchestrator.planCampaign({
                     ...input,
-                    campaignId: campaignId // VITAL: Pass ID for artifact tagging
+                    campaignId: campaignId
                 });
 
-                console.log('[Store] Orchestrator planning complete. Setting status to planned.');
                 set({ status: 'planned' });
-                get().addLog('Campaign execution plan generated. Initiating execution sequence...');
-
-                // Auto-execute for seamless tailored experience
-                console.log('[Store] Auto-executing campaign...');
-                useNotificationStore.getState().addNotification({
-                    type: 'success',
-                    title: 'Execution Plan Ready',
-                    message: 'Campaign strategy has been generated. Agents are now executing tasks.'
-                });
+                get().addLog('Campaign execution plan generated.');
                 get().executeCampaign();
             } catch (error) {
                 console.error('[Store] Error during planning:', error);
-                get().addLog(`Error during planning: ${error}`);
                 set({ status: 'idle' });
-                useNotificationStore.getState().addNotification({
-                    type: 'error',
-                    title: 'Planning Failed',
-                    message: 'Could not generate campaign plan. Please try again.'
-                });
             }
         },
 
@@ -354,14 +295,156 @@ export const useCampaignStore = create<CampaignState>((set, get) => {
             }
         },
 
-        saveCampaign: async () => {
-            // Deprecated in favor of auto-save during planCampaign
-            const { input } = get();
-            console.log('Saving campaign context...', input);
-            set({ status: 'created' });
-            get().addLog('Campaign context saved successfully. Status: CREATED');
+        generateImageForCreative: async (creative: any & { backendPreference?: any }) => {
+            get().addLog(`[Manual Trigger] Generating image for creative: ${creative.id} using ${creative.backendPreference || 'default'}`);
+            useNotificationStore.getState().addNotification({
+                type: 'info',
+                title: 'Generating Image...',
+                message: creative.backendPreference === 'STOCK' ? 'Fetching stock photo...' : 'Connecting to AI model...'
+            });
+
+            try {
+                const { imageGenerationService } = await import('../services/image/ImageGenerationService');
+
+                // Force check if service is enabled
+                imageGenerationService.setEnabled(true);
+
+                const platformStyle = creative.platform || 'General';
+                const finalPrompt = `${creative.visual_prompt}, high resolution professional photography, ${platformStyle} aesthetics`;
+
+                console.log('[Store] Requesting image for prompt:', finalPrompt);
+                const result = await imageGenerationService.generateImage({
+                    prompt: finalPrompt,
+                    backend: creative.backendPreference || 'LCM'
+                });
+
+                console.log('[Store] generateImage result:', result);
+
+                if (result && result.url) {
+                    let finalUrl = result.url;
+                    const campaignId = get().graph?.context?.campaignId || get().campaignId;
+
+                    // 1. Persistent Sync to Supabase Storage (Synchronous for the store state)
+                    if (creative.id && campaignId && !campaignId.toString().startsWith('temp-')) {
+                        get().addLog(`[Storage] Persisting image for ${creative.id} to Supabase...`);
+                        try {
+                            const svc = SupabaseService.getInstance();
+                            const storageUrl = await svc.uploadImageFromUrl(campaignId, creative.id, result.url);
+                            if (storageUrl) {
+                                finalUrl = storageUrl;
+                                await svc.updateCreativeVisual(creative.id, finalUrl, result.provider);
+                                get().addLog('[Storage] Image persisted and linked successfully.');
+                            }
+                        } catch (syncErr) {
+                            console.error('[Store] Persistent sync failed:', syncErr);
+                            get().addLog('[Storage] Sync failed, falling back to external URL.');
+                        }
+                    }
+
+                    set((state) => {
+                        // 2. Update local state with the final (ideally Supabase) URL
+                        const updatedCreatives = state.creatives.map(c => {
+                            if (c.id === creative.id) {
+                                return { ...c, visual_asset_url: finalUrl, visual_asset_provider: result.provider };
+                            }
+                            return c;
+                        });
+
+                        // 3. Update graph node results
+                        let newGraph = state.graph;
+                        if (newGraph && newGraph.nodes['creative_generation']) {
+                            const node = newGraph.nodes['creative_generation'];
+                            const variants = node.result?.variants || [];
+                            const updatedVariants = variants.map((v: any) => {
+                                if (v.id === creative.id) {
+                                    return { ...v, visual_asset_url: finalUrl, visual_asset_provider: result.provider, imageUrl: finalUrl };
+                                }
+                                return v;
+                            });
+                            newGraph = {
+                                ...newGraph,
+                                nodes: { ...newGraph.nodes, creative_generation: { ...node, result: { ...node.result, variants: updatedVariants } } }
+                            };
+                        }
+
+                        return { creatives: updatedCreatives, graph: newGraph };
+                    });
+
+                    useNotificationStore.getState().addNotification({
+                        type: 'success',
+                        title: 'Image Generated',
+                        message: 'Custom visual is ready.'
+                    });
+                } else {
+                    console.error('[Store] Service returned empty result');
+                    throw new Error('Service returned no URL');
+                }
+            } catch (error: any) {
+                console.error("[Store] Manual generation failed:", error);
+                useNotificationStore.getState().addNotification({
+                    type: 'error',
+                    title: 'Generation Failed',
+                    message: `Could not generate image: ${error.message}`
+                });
+            }
         },
 
-        reset: () => set({ status: 'idle', graph: null, logs: [] })
+        updateCreativeVisual: (creativeId, url, provider) => {
+            set(state => ({
+                creatives: state.creatives.map(c =>
+                    c.id === creativeId ? { ...c, visual_asset_url: url, visual_asset_provider: provider } : c
+                )
+            }));
+        },
+
+        resetCampaign: async () => {
+            const userId = useAuthStore.getState().user?.id;
+            if (userId) {
+                try {
+                    await SupabaseService.getInstance().saveDraft(userId, {
+                        product: '',
+                        productDescription: '',
+                        keyFeatures: '',
+                        audience: '',
+                        goal: 'AWARENESS',
+                        budget: '',
+                        numVariants: 3,
+                        platforms: [],
+                        targetPlatforms: [],
+                        brandGuidelines: '',
+                        guidelineFileName: '',
+                        guidelineStorageUrl: ''
+                    });
+                } catch (e) {
+                    console.warn('Failed to clear draft in DB', e);
+                }
+            }
+            set({
+                status: 'idle',
+                graph: null,
+                logs: [],
+                creatives: [],
+                campaignId: null,
+                input: {
+                    projectName: '',
+                    product: '',
+                    productDescription: '',
+                    keyFeatures: '',
+                    audience: '',
+                    goal: '',
+                    campaignType: 'AWARENESS',
+                    pricePoint: '',
+                    budget: '',
+                    numVariants: 3,
+                    platforms: [],
+                    targetPlatforms: [],
+                    brandGuidelines: '',
+                    guidelineFileName: '',
+                    guidelineStorageUrl: ''
+                }
+            });
+        },
+
+        reset: () => set({ status: 'idle', graph: null, logs: [], creatives: [], campaignId: null })
     };
 });

@@ -27,9 +27,23 @@ export const useAuthStore = create<AuthState>((set) => ({
         const { data: { session } } = await supabase.auth.getSession();
         set({ user: session?.user || null, loading: false });
 
+        if (session?.user) {
+            // Ensure public.users record exists
+            await supabase.from('users').upsert({
+                id: session.user.id,
+                email: session.user.email
+            }, { onConflict: 'id' });
+        }
+
         // Listen for auth changes
-        supabase.auth.onAuthStateChange((_event, session) => {
+        supabase.auth.onAuthStateChange(async (_event, session) => {
             set({ user: session?.user || null });
+            if (session?.user) {
+                await supabase.from('users').upsert({
+                    id: session.user.id,
+                    email: session.user.email
+                }, { onConflict: 'id' });
+            }
         });
     },
 
@@ -37,6 +51,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (!error && data.user) {
             set({ user: data.user });
+            // Ensure public.users record exists
+            await supabase.from('users').upsert({
+                id: data.user.id,
+                email: data.user.email
+            }, { onConflict: 'id' });
         }
         return { error };
     },
@@ -45,6 +64,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (!error && data.user) {
             set({ user: data.user });
+            // Ensure public.users record exists
+            await supabase.from('users').upsert({
+                id: data.user.id,
+                email: data.user.email
+            }, { onConflict: 'id' });
         }
         return { error };
     },

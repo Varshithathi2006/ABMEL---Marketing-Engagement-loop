@@ -1,15 +1,5 @@
 import { BaseAgent } from './BaseAgent';
-import type { AgentResult } from '../../types/abmel';
-
-export interface MarketIntelligenceOutput {
-    marketSummary: string;
-    industry: string;
-    keyOpportunities: string[];
-    keyRisks: string[];
-    competitorMessaging: string[]; // Added requirement
-    recommendedPositioning: string;
-    suggestedMessagingAngles: string[];
-}
+import type { AgentResult, MarketAnalysisOutput } from '../../types/abmel';
 
 export class MarketIntelligenceAgent extends BaseAgent {
     constructor() {
@@ -29,7 +19,7 @@ export class MarketIntelligenceAgent extends BaseAgent {
 
             this.log(`Detected Domain Context: ${industry.toUpperCase()}`);
 
-            const intelligence = this.generateIntelligence(industry, product);
+            const intelligence = this.generateIntelligence(industry);
 
             this.status = 'completed';
             return {
@@ -62,66 +52,49 @@ export class MarketIntelligenceAgent extends BaseAgent {
         return 'general_tech'; // Default fallback
     }
 
-    private generateIntelligence(industry: string, product: string): MarketIntelligenceOutput {
+    private generateIntelligence(industry: string): MarketAnalysisOutput {
         // Deterministic Strategy Maps
         const strategies: Record<string, any> = {
             'saas': {
-                maturity: 'growing',
-                narratives: ['Efficiency at scale', 'AI-powered automation', 'Seamless integration'],
-                competitorMessaging: ['"The #1 Platform for X"', '"Automate everything"', '"Built for scale"'],
-                opportunities: ['Focus on specific pain-point resolution', 'Human-centric AI benefits', 'Time-to-value speed'],
-                risks: ['Buzzword fatigue (too much "AI")', 'Feature complexity', 'Lack of trust'],
                 positioning: 'The Intelligent Enabler',
-                angles: ['The "New Way" vs Old Way', 'Proof of Efficiency', 'Empowerment']
+                triggers: ['Efficiency at scale', 'AI-powered automation', 'Seamless integration'],
+                recommended_channels: ['LinkedIn', 'Twitter', 'TechCrunch'],
+                risks: ['Buzzword fatigue', 'Implementation complexity']
             },
             'fashion': {
-                maturity: 'saturated',
-                narratives: ['Sustainability', 'Self-expression', 'Dopamine dressing'],
-                competitorMessaging: ['"Wear your vibe"', '"Timeless classics"', '"Comfort meets style"'],
-                opportunities: ['Radical transparency', 'Digital-only fashion', 'Nostalgia remix'],
-                risks: ['Greenwashing accusations', 'Trend obsolescence', 'Generic imagery'],
                 positioning: 'The Identity Shaper',
-                angles: ['Visual Impact', 'Ethical Luxury', 'Exclusive Access']
+                triggers: ['Visual Aesthetics', 'Social Validation', 'Sustainability'],
+                recommended_channels: ['Instagram', 'TikTok', 'Pinterest'],
+                risks: ['Greenwashing', 'Trend obsolescence']
             },
             'fintech': {
-                maturity: 'mature',
-                narratives: ['Democratizing finance', 'Crypto future', 'Frictionless payments'],
-                competitorMessaging: ['"Banking without borders"', '"Invest in your future"', '"Fast, secure, simple"'],
-                opportunities: ['Financial wellness/education', 'Community-driven wealth', 'Transparent fees'],
-                risks: ['Regulatory fears', 'Security doubts', 'Cold/impersonal feel'],
                 positioning: 'The Trusted Partner',
-                angles: ['Freedom & Control', 'Security First', 'Smart Growth']
+                triggers: ['Financial Freedom', 'Security', 'Speed'],
+                recommended_channels: ['LinkedIn', 'Google Search', 'Financial News'],
+                risks: ['Trust deficit', 'Regulatory concerns']
             },
             'health': {
-                maturity: 'growing',
-                narratives: ['Holistic wellness', 'Science-backed', 'Personalized care'],
-                competitorMessaging: ['"Clinically proven"', '"Nature meets science"', '"Unlock your potential"'],
-                opportunities: ['Mental health integration', 'Preventative lifestyle', 'Community support'],
-                risks: ['Pseudoscientific claims', 'Over-promising', 'Medical jargon'],
                 positioning: 'The Wellness Companion',
-                angles: ['Evidence-Based', 'Empathy & Care', 'Holistic Balance']
+                triggers: ['Vitality', 'Science-backed results', 'Ease of use'],
+                recommended_channels: ['Instagram', 'YouTube', 'Health Blogs'],
+                risks: ['Medical claims scrutiny', 'Skepticism']
             },
             'general_tech': {
-                maturity: 'competitive',
-                narratives: ['Innovation', 'Performance', 'Design'],
-                competitorMessaging: ['"The world\'s most powerful X"', '"Designed for Pro"', '"Experience the future"'],
-                opportunities: ['Niche feature focus', 'Design aesthetics', 'Customer support excellence'],
-                risks: ['Commoditization', 'Spec wars', 'Design copycats'],
                 positioning: 'The Premium Choice',
-                angles: ['Performance Leader', 'Design Focused', 'User Experience']
+                triggers: ['Performance', 'Status', 'Innovation'],
+                recommended_channels: ['YouTube', 'Tech Blogs', 'Reddit'],
+                risks: ['Commoditization', 'Better specs elsewhere']
             }
         };
 
         const strat = strategies[industry] || strategies['general_tech'];
 
         return {
-            marketSummary: `The ${industry} market for ${product} is currently ${strat.maturity}. Key players focus on ${strat.narratives[0]}.`,
-            industry: industry,
-            keyOpportunities: strat.opportunities,
-            keyRisks: strat.risks,
-            competitorMessaging: strat.competitorMessaging,
-            recommendedPositioning: strat.positioning,
-            suggestedMessagingAngles: strat.angles
+            market_position: strat.positioning,
+            key_triggers: strat.triggers,
+            // Strict Schema Compliance
+            risks: strat.risks,
+            recommended_channels: strat.recommended_channels
         };
     }
 }

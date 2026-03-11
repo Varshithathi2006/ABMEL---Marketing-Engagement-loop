@@ -9,6 +9,21 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Handle New User Registration (Trigger)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.users (id, email, role)
+  VALUES (new.id, new.email, 'Marketing_Director');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- 2. CAMPAIGNS
 CREATE TABLE IF NOT EXISTS public.campaigns (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -52,6 +67,9 @@ CREATE TABLE IF NOT EXISTS public.creative_variants (
     visual_prompt TEXT NOT NULL,
     tone TEXT NOT NULL,
     platform TEXT NOT NULL,
+    visual_asset_url TEXT,
+    visual_asset_provider TEXT,
+    visual_assets JSONB DEFAULT '[]'::jsonb,
     is_best_creative BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -84,8 +102,14 @@ CREATE POLICY "Users can update own campaigns" ON public.campaigns FOR UPDATE US
 DROP POLICY IF EXISTS "Users can view own guidelines" ON public.brand_guidelines;
 CREATE POLICY "Users can view own guidelines" ON public.brand_guidelines FOR SELECT USING (EXISTS (SELECT 1 FROM public.campaigns WHERE id = brand_guidelines.campaign_id AND user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can insert own guidelines" ON public.brand_guidelines;
+CREATE POLICY "Users can insert own guidelines" ON public.brand_guidelines FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.campaigns WHERE id = brand_guidelines.campaign_id AND user_id = auth.uid()));
+
 DROP POLICY IF EXISTS "Users can view own agent outputs" ON public.agent_outputs;
 CREATE POLICY "Users can view own agent outputs" ON public.agent_outputs FOR SELECT USING (EXISTS (SELECT 1 FROM public.campaigns WHERE id = agent_outputs.campaign_id AND user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Users can insert own agent outputs" ON public.agent_outputs;
+CREATE POLICY "Users can insert own agent outputs" ON public.agent_outputs FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.campaigns WHERE id = agent_outputs.campaign_id AND user_id = auth.uid()));
     
 DROP POLICY IF EXISTS "Users can view own variants" ON public.creative_variants;
 CREATE POLICY "Users can view own variants" ON public.creative_variants FOR SELECT USING (EXISTS (SELECT 1 FROM public.campaigns WHERE id = creative_variants.campaign_id AND user_id = auth.uid()));
@@ -93,5 +117,19 @@ CREATE POLICY "Users can view own variants" ON public.creative_variants FOR SELE
 DROP POLICY IF EXISTS "Users can insert own variants" ON public.creative_variants;
 CREATE POLICY "Users can insert own variants" ON public.creative_variants FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.campaigns WHERE id = creative_variants.campaign_id AND user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can update own variants" ON public.creative_variants;
+CREATE POLICY "Users can update own variants" ON public.creative_variants FOR UPDATE USING (EXISTS (SELECT 1 FROM public.campaigns WHERE id = creative_variants.campaign_id AND user_id = auth.uid()));
+
 DROP POLICY IF EXISTS "Users can manage own drafts" ON public.user_drafts;
 CREATE POLICY "Users can manage own drafts" ON public.user_drafts FOR ALL USING (auth.uid() = user_id);
+
+-- Profile policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
+CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
+CREATE POLICY "Users can insert own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
+
